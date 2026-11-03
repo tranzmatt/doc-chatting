@@ -1,0 +1,4 @@
+# Additional dependencies for models served by Ollama.
+# Install with: python -m pip install -r requirements-ollama.txt
+-r requirements.txt
+llama-index-llms-ollama>=0.5,<0.10
