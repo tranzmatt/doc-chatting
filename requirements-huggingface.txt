@@ -1,0 +1,7 @@
+# Additional dependencies for Hugging Face Transformers models.
+# Install with: python -m pip install -r requirements-huggingface.txt
+# Install a matching PyTorch/CUDA build separately if GPU acceleration is required.
+-r requirements.txt
+llama-index-llms-huggingface>=0.4,<0.8
+transformers>=4.45,<5
+accelerate>=1,<2
