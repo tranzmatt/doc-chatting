@@ -13,6 +13,30 @@ import sys
 import tempfile
 import time
 
+FIXTURE_TEXT = (
+    "Military laser incident test policy. In a suspected laser exposure incident, "
+    "stop the activity immediately, avoid further exposure, notify the range safety "
+    "officer, obtain prompt medical evaluation, and document the event."
+)
+
+
+def make_test_pdf(directory):
+    """Create a deterministic local PDF with known, extractable text."""
+    from reportlab.pdfgen import canvas
+    directory.mkdir(parents=True, exist_ok=True)
+    path = directory / "laser_incident_fixture.pdf"
+    pdf = canvas.Canvas(str(path))
+    pdf.setTitle("Synthetic Laser Incident Test Policy (not official guidance)")
+    pdf.drawString(50, 750, "Synthetic Laser Incident Test Policy")
+    pdf.drawString(50, 720, "This document exists solely to test document retrieval.")
+    pdf.drawString(50, 690, "In a suspected military laser incident:")
+    pdf.drawString(50, 670, "Stop the activity immediately and avoid further exposure.")
+    pdf.drawString(50, 650, "Notify the range safety officer.")
+    pdf.drawString(50, 630, "Obtain prompt medical evaluation and document the event.")
+    pdf.save()
+    return path
+
+
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "chatting_with_your_docs.py"
 
@@ -43,7 +67,10 @@ def main():
     parser.add_argument("--ollama-url", default="http://127.0.0.1:11434")
     parser.add_argument("--request-timeout", type=float, default=300.0)
     parser.add_argument("--documents", type=Path, default=ROOT / "sample_documents")
-    parser.add_argument("--download-samples", action="store_true", help="Download the public sample PDFs")
+    parser.add_argument("--download-samples", action="store_true",
+                        help="Legacy option: generate a synthetic offline test PDF (no network)")
+    parser.add_argument("--official-samples", action="store_true",
+                        help="Opt in to downloading upstream DoD PDFs (may return HTTP 403)")
     parser.add_argument("--gpu-layers", type=int, default=0)
     parser.add_argument("--context-window", type=int, default=3900)
     parser.add_argument("--question", default="What should I do in the event of a military laser incident?")
@@ -67,7 +94,7 @@ def main():
             parser.error(f"Cannot contact Ollama at {args.ollama_url}: {exc}")
         if args.model not in available and (args.model + ":latest") not in available:
             parser.error(f"Ollama model {args.model!r} not installed. Available models: {available}. Run: ollama pull {args.model}")
-    if not args.download_samples and not list(documents.rglob("*.pdf")):
+    if not (args.download_samples or args.official_samples) and not list(documents.rglob("*.pdf")):
         parser.error(f"No PDFs found under {documents}; supply --documents or --download-samples")
 
     print(f"Python: {sys.version.split()[0]}")
@@ -77,6 +104,10 @@ def main():
     print(f"GPU layers: {args.gpu_layers}")
     with tempfile.TemporaryDirectory(prefix="doc-chatting-test-") as tmp:
         index_dir = Path(tmp) / "index"
+        if args.download_samples:
+            documents = Path(tmp) / "fixture_pdfs"
+            fixture = make_test_pdf(documents)
+            print(f"Generated synthetic local PDF: {fixture}", flush=True)
         command = [
             sys.executable, str(APP),
             "--documents", str(documents),
@@ -93,7 +124,7 @@ def main():
         if args.backend == "ollama":
             command.extend(["--ollama-url", args.ollama_url,
                             "--request-timeout", str(args.request_timeout)])
-        if args.download_samples:
+        if args.official_samples:
             command.append("--download-samples")
         first_output = run_case("Build index and answer", command, args.timeout)
         if "Index saved to " not in first_output or not index_dir.is_dir():
