@@ -22,8 +22,29 @@ class CLITests(unittest.TestCase):
             cwd=ROOT, capture_output=True, text=True, timeout=20,
         )
         self.assertEqual(process.returncode, 0, process.stderr)
-        for flag in ("--documents", "--model-path", "--question", "--reuse-index", "--gradio"):
+        for flag in ("--documents", "--backend", "--model", "--ollama-url", "--model-path", "--question", "--reuse-index", "--gradio"):
             self.assertIn(flag, process.stdout)
+
+    def test_backend_requires_model_name(self):
+        for backend in ("ollama", "huggingface"):
+            with self.subTest(backend=backend):
+                result = subprocess.run(
+                    [sys.executable, str(ROOT / "chatting_with_your_docs.py"),
+                     "--backend", backend, "--question", "hello"],
+                    cwd=ROOT, capture_output=True, text=True, timeout=20,
+                )
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("--model is required", result.stderr)
+
+    def test_model_path_rejected_for_ollama(self):
+        result = subprocess.run(
+            [sys.executable, str(ROOT / "chatting_with_your_docs.py"),
+             "--backend", "ollama", "--model", "example",
+             "--model-path", "example.gguf"],
+            cwd=ROOT, capture_output=True, text=True, timeout=20,
+        )
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("only supported with --backend llama-cpp", result.stderr)
 
     def test_default_model_url_is_gguf(self):
         self.assertTrue(app.DEFAULT_MODEL_URL.endswith(".gguf"))
