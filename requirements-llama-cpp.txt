@@ -1,0 +1,4 @@
+# GGUF/llama.cpp model support. Install a CUDA-capable llama-cpp-python wheel/build for GPU use.
+-r requirements.txt
+llama-index-llms-llama-cpp>=0.3,<0.6
+llama-cpp-python>=0.3,<0.4
