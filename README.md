@@ -78,7 +78,7 @@ Run the fast offline smoke tests after installing dependencies. These check CLI 
 python -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-Run an **end-to-end integration test** using a GGUF model already on your machine. The test downloads the two *public* example PDFs (unless you specify your own documents), builds a fresh index in a temporary directory, asks a question, then loads the persisted index and asks again:
+Run an **end-to-end integration test** using a GGUF model already on your machine. With `--download-samples`, the test now **generates a small synthetic PDF locally**, avoiding dependence on external document servers (the original DoD PDF links may return HTTP 403). It builds a fresh index in a temporary directory, asks a question, then loads the persisted index and asks again:
 
 ```bash
 python tests/run_integration.py --backend ollama --model llama3.2 --download-samples
@@ -100,7 +100,7 @@ python tests/run_integration.py --model-path /absolute/path/to/model.gguf \
 
 The integration runner accepts `--context-window`, `--question`, `--timeout` (seconds per run; default 900), and `--skip-reuse`. It prints the underlying command, standard output, errors and elapsed time. A successful run ends with `PASS: end-to-end RAG workflow completed.` A failed test exits nonzero with `FAIL:` and an error. It checks execution and persistence, **not** whether the model's answer is factually correct.
 
-The full integration test can download embedding weights on first use and consumes model RAM/VRAM. It leaves your existing indices untouched; its temporary test index is removed afterward. You do not need Gradio running. Use only public or appropriately authorized documents.
+To specifically test the original DoD PDF downloads, use `--official-samples` instead of `--download-samples`; these external URLs may fail with HTTP 403 and are not required to test the RAG pipeline. The synthetic document is a test fixture, **not official DoD safety guidance**. The full integration test can download embedding weights on first use and consumes model RAM/VRAM. It leaves your existing indices untouched; its temporary test index is removed afterward. You do not need Gradio running. Use only public or appropriately authorized documents.
 
 ## CLI options
 
