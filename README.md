@@ -1,45 +1,55 @@
 # doc-chatting
 
-A standalone Python adaptation of the [DoD **Chatting with your Docs** notebook](https://github.com/deptofdefense/LLMs-at-DoD/blob/main/tutorials/Chatting%20with%20your%20Docs.ipynb) by Glenn Parham (Defense Digital Service). Ask questions about local PDFs using retrieval-augmented generation (RAG), a local GGUF language model with llama.cpp, LlamaIndex, and Hugging Face embeddings.
+A standalone Python adaptation of the [DoD **Chatting with your Docs** notebook](https://github.com/deptofdefense/LLMs-at-DoD/blob/main/tutorials/Chatting%20with%20your%20Docs.ipynb) by Glenn Parham (Defense Digital Service). Ask questions about local PDFs using retrieval-augmented generation (RAG), Ollama, Hugging Face Transformers, or a local GGUF model, plus LlamaIndex and Hugging Face embeddings.
 
 ## Features
 
 - Download two public DoD policy PDFs for a working example, or index your own PDFs.
-- Run inference locally with a GGUF model and optional GPU layer offloading.
+- Choose an installed Ollama model by tag, a Hugging Face Transformers model by ID, or a local GGUF model with optional GPU layer offloading.
 - Persist the vector index and reload it on subsequent runs.
 - Ask a single question, use a terminal prompt, or launch a **local-only** Gradio UI.
 
 ## Prerequisites
 
-Python 3.10+ recommended. A GGUF model needs significant disk space and memory; CPU-only inference may be slow. The default model is `TheBloke/Mistral-7B-OpenOrca-GGUF` (`Q5_K_M`) and is downloaded on first use. You can specify a GGUF model already on disk instead.
+Python 3.11 recommended. Model memory requirements vary widely. **Ollama is the easiest choice if you already have models installed**; the script does not download an additional LLM for the Ollama backend. Hugging Face Transformers loads a model from its normal cache or downloads it by model ID if missing. The legacy llama.cpp default downloads `TheBloke/Mistral-7B-OpenOrca-GGUF` on first use.
 
 Create a virtual environment and install dependencies:
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate       # Windows PowerShell: .venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
+python -m pip install -r requirements-ollama.txt  # or requirements-huggingface.txt / requirements-llama-cpp.txt
 ```
 
 > **GPU acceleration:** The ordinary `llama-cpp-python` wheel may be CPU-only. To use CUDA, install a CUDA-enabled build matching your toolchain, for example with `CMAKE_ARGS="-DGGML_CUDA=on"` and `FORCE_CMAKE=1` when building from source. See the [llama-cpp-python install instructions](https://github.com/abetlen/llama-cpp-python#installation) for your platform.
 
 ## Quick start
 
-Download the example PDFs, build an index, and open an interactive command-line session:
+Download the example PDFs, build an index, and open an interactive command-line session using a model already available in Ollama:
 
 ```bash
-python chatting_with_your_docs.py --download-samples
+ollama list
+python chatting_with_your_docs.py --backend ollama --model llama3.2 --download-samples
 ```
+
+Replace `llama3.2` with a tag shown by `ollama list`. Ollama must be running (normally at `http://127.0.0.1:11434`). For a different server, specify `--ollama-url http://HOST:11434`.
 
 At the `Question>` prompt, ask about the policies. Type `quit` to exit.
 
-Run against your own PDF directory and local model:
+Run against your own PDF directory and local GGUF model:
 
 ```bash
 python chatting_with_your_docs.py --documents ./my_pdfs --model-path ./model.gguf --gpu-layers 30
 ```
 
-Ask a single question:
+Ask a single question with a Hugging Face Transformers model (downloaded/cached automatically):
+
+```bash
+python chatting_with_your_docs.py --backend huggingface --model Qwen/Qwen2.5-1.5B-Instruct --documents ./my_pdfs \
+  --question "Summarize the key requirements"
+```
+
+Or ask with a GGUF model:
 
 ```bash
 python chatting_with_your_docs.py --documents ./my_pdfs --model-path ./model.gguf \
@@ -71,10 +81,17 @@ python -m unittest discover -s tests -p 'test_*.py' -v
 Run an **end-to-end integration test** using a GGUF model already on your machine. The test downloads the two *public* example PDFs (unless you specify your own documents), builds a fresh index in a temporary directory, asks a question, then loads the persisted index and asks again:
 
 ```bash
-python tests/run_integration.py --model-path /absolute/path/to/model.gguf --download-samples
+python tests/run_integration.py --backend ollama --model llama3.2 --download-samples
 ```
 
-To use existing documents with GPU offload instead:
+To test a Hugging Face model ID instead:
+
+```bash
+python tests/run_integration.py --backend huggingface \
+  --model Qwen/Qwen2.5-1.5B-Instruct --download-samples
+```
+
+To use a local GGUF model and existing documents with GPU offload instead:
 
 ```bash
 python tests/run_integration.py --model-path /absolute/path/to/model.gguf \
@@ -91,7 +108,7 @@ The full integration test can download embedding weights on first use and consum
 python chatting_with_your_docs.py --help
 ```
 
-Important flags: `--documents`, `--download-samples`, `--model-path`, `--model-url`, `--embedding-model`, `--gpu-layers`, `--context-window`, `--index-dir`, `--reuse-index`, `--question`, `--gradio`, `--host`, `--port`, `--verbose`.
+Important flags: `--backend`, `--model`, `--ollama-url`, `--request-timeout`, `--documents`, `--download-samples`, `--model-path`, `--model-url`, `--embedding-model`, `--gpu-layers`, `--context-window`, `--index-dir`, `--reuse-index`, `--question`, `--gradio`, `--host`, `--port`, `--verbose`.
 
 ## How it works
 
@@ -106,7 +123,8 @@ Important flags: `--documents`, `--download-samples`, `--model-path`, `--model-u
 
 - First-time use may download model weights and embedding weights.
 - The sample policy PDF URLs are external government resources and may change over time.
-- This script uses a **local llama.cpp GGUF model**, not an OpenAI-compatible hosted/vLLM endpoint. That can be a future enhancement.
+- The inference backend can be Ollama, Hugging Face Transformers, or llama.cpp. It does not yet directly connect to an OpenAI-compatible vLLM endpoint.
+- The **embedding model** (`BAAI/bge-small-en-v1.5`) is separate from the generation model and is cached through Hugging Face.
 - No model weights, downloaded PDFs, or generated indices are tracked in Git.
 - Generated answers may contain errors. Check citations and source PDFs before relying on answers.
 
