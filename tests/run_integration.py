@@ -65,7 +65,7 @@ def main():
             available = [entry.get("name") for entry in response.json().get("models", [])]
         except (requests.RequestException, ValueError) as exc:
             parser.error(f"Cannot contact Ollama at {args.ollama_url}: {exc}")
-        if args.model not in available:
+        if args.model not in available and (args.model + ":latest") not in available:
             parser.error(f"Ollama model {args.model!r} not installed. Available models: {available}. Run: ollama pull {args.model}")
     if not args.download_samples and not list(documents.rglob("*.pdf")):
         parser.error(f"No PDFs found under {documents}; supply --documents or --download-samples")
