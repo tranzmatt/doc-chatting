@@ -60,6 +60,31 @@ python chatting_with_your_docs.py --documents ./my_pdfs --model-path ./model.ggu
 
 Open <http://127.0.0.1:7860>. By default Gradio listens on localhost and `share=False`; it does **not** publish a public sharing link. Only bind a public/network host if you understand the security implications. **Do not use this example with classified or sensitive documents without an appropriately authorized environment and review.**
 
+## Testing
+
+Run the fast offline smoke tests after installing dependencies. These check CLI help, default model configuration, streamed sample-PDF downloads, and HTTP error handling without loading a language model:
+
+```bash
+python -m unittest discover -s tests -p 'test_*.py' -v
+```
+
+Run an **end-to-end integration test** using a GGUF model already on your machine. The test downloads the two *public* example PDFs (unless you specify your own documents), builds a fresh index in a temporary directory, asks a question, then loads the persisted index and asks again:
+
+```bash
+python tests/run_integration.py --model-path /absolute/path/to/model.gguf --download-samples
+```
+
+To use existing documents with GPU offload instead:
+
+```bash
+python tests/run_integration.py --model-path /absolute/path/to/model.gguf \
+  --documents ./my_pdfs --gpu-layers 30
+```
+
+The integration runner accepts `--context-window`, `--question`, `--timeout` (seconds per run; default 900), and `--skip-reuse`. It prints the underlying command, standard output, errors and elapsed time. A successful run ends with `PASS: end-to-end RAG workflow completed.` A failed test exits nonzero with `FAIL:` and an error. It checks execution and persistence, **not** whether the model's answer is factually correct.
+
+The full integration test can download embedding weights on first use and consumes model RAM/VRAM. It leaves your existing indices untouched; its temporary test index is removed afterward. You do not need Gradio running. Use only public or appropriately authorized documents.
+
 ## CLI options
 
 ```bash
